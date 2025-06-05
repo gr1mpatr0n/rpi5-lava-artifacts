@@ -1,0 +1,99 @@
+# Raspberry PI 5 Health Check
+# It does:
+# - check Uboot version
+# - detect the LAA Virtual USB Mass Storage
+# - check DUT access to the LAA's private network
+# - boot a simple OS
+
+device_type: bcm2712-rpi-5-b
+tags:
+  - dev-2c5deaeb-0d55-4594-8abd-50f46e89cf44
+job_name: RPi5 Health Check
+visibility: public
+timeouts:
+  job:
+    minutes: 10
+  action:
+    minutes: 5
+  connection:
+    minutes: 2
+context:
+  lava_test_results_dir: /var/lib/lava-%s
+actions:
+ # Deploy bootloader via usbg mass storage
+- deploy:
+    timeout:
+      minutes: 5
+    to: usbg-ms
+    image:
+      url: https://firmwares.lavacloud.io/rpi-5/boot.img.zst
+      compression: zstd
+ # Run uboot and collect the info we want
+- boot:
+    method: bootloader
+    bootloader: u-boot
+    prompts:
+      - 'U-Boot>'
+    commands: []
+    timeout:
+      minutes: 2
+- test:
+    timeout:
+      minutes: 1
+    interactive:
+      - name: uboot-info
+        echo: discard
+        prompts:
+          - 'U-Boot>'
+        script:
+          - name: usb
+            command: 'usb info; echo FAIL_TAG'
+            successes:
+             - message: 'LAA USB Mass Storage Gadget'
+            failures:
+             - message: 'FAIL_TAG'
+               exception: InfrastructureError
+               error: 'Virtual USB Not Connected'
+          - name: version
+            command: 'version; echo FAIL_TAG'
+            successes:
+             - message: 'U-Boot 2024.0'
+            failures:
+             - message: 'FAIL_TAG'
+               exception: InfrastructureError
+               error: 'Wrong Uboot Version'
+          - name: ethernet
+            command: 'dhcp; ping 198.18.0.1'
+            successes:
+             - message: 'host 198.18.0.1 is alive'
+            failures:
+             - message: 'ping failed'
+               exception: InfrastructureError
+               error: 'Private Ethernet Not Connected'
+
+# Deploy Linux to TFTP
+- deploy:
+    timeout:
+      minutes: 5
+    to: tftp
+    kernel:
+      url: https://raw.githubusercontent.com/gr1mpatr0n/rpi5-lava-artifacts/refs/heads/main/Image.gz
+      type: image
+      compression: gz
+    modules:
+      url: https://raw.githubusercontent.com/gr1mpatr0n/rpi5-lava-artifacts/refs/heads/main/modules.tar.xz
+      compression: xz
+    ramdisk:
+      url: https://raw.githubusercontent.com/gr1mpatr0n/rpi5-lava-artifacts/refs/heads/main/rootfs.cpio.gz
+      compression: gz
+    dtb:
+      url: https://raw.githubusercontent.com/gr1mpatr0n/rpi5-lava-artifacts/refs/heads/main/dtbs/bcm2712-rpi-5-b.dtb
+    os: oe
+- boot:
+    method: u-boot
+    commands: ramdisk
+    prompts:
+      - '/ #'
+    timeout:
+      minutes: 5 
+
