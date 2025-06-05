@@ -77,9 +77,8 @@ actions:
       minutes: 5
     to: tftp
     kernel:
-      url: https://raw.githubusercontent.com/gr1mpatr0n/rpi5-lava-artifacts/refs/heads/main/Image.gz
+      url: https://raw.githubusercontent.com/gr1mpatr0n/rpi5-lava-artifacts/refs/heads/main/Image
       type: image
-      compression: gz
     modules:
       url: https://raw.githubusercontent.com/gr1mpatr0n/rpi5-lava-artifacts/refs/heads/main/modules.tar.xz
       compression: xz
